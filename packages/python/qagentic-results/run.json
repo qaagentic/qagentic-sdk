@@ -1,0 +1,22 @@
+{
+  "id": "17ea6af5-7c4e-4b5a-93e3-f0f90ddf1199",
+  "name": "pytest_20251219_211014",
+  "project_name": "default",
+  "environment": "local",
+  "start_time": "2025-12-19T21:10:14.175446",
+  "end_time": "2025-12-19T21:10:18.600916",
+  "duration_ms": 4425.469999999999,
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "broken": 0,
+  "skipped": 0,
+  "pass_rate": 0.0,
+  "labels": {},
+  "parameters": {},
+  "ci_build_id": null,
+  "ci_build_url": null,
+  "branch": null,
+  "commit_hash": null,
+  "tests": []
+}

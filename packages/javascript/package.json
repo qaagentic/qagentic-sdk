@@ -1,0 +1,104 @@
+{
+  "name": "@qagentic/reporter",
+  "version": "0.1.0",
+  "description": "AI-Powered Test Intelligence SDK for JavaScript/TypeScript - Cypress, Playwright, Jest support",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./cypress": {
+      "types": "./dist/cypress/index.d.ts",
+      "import": "./dist/cypress/index.mjs",
+      "require": "./dist/cypress/index.js"
+    },
+    "./playwright": {
+      "types": "./dist/playwright/index.d.ts",
+      "import": "./dist/playwright/index.mjs",
+      "require": "./dist/playwright/index.js"
+    },
+    "./jest": {
+      "types": "./dist/jest/index.d.ts",
+      "import": "./dist/jest/index.mjs",
+      "require": "./dist/jest/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "testing",
+    "test-reporting",
+    "cypress",
+    "playwright",
+    "jest",
+    "ai",
+    "test-analytics",
+    "quality-assurance",
+    "automation",
+    "allure"
+  ],
+  "author": "QAagentic Team <team@qagentic.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qagentic/qagentic-sdk.git",
+    "directory": "packages/javascript"
+  },
+  "homepage": "https://github.com/qagentic/qagentic-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/qagentic/qagentic-sdk/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "uuid": "^9.0.0",
+    "yaml": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "rimraf": "^5.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "peerDependencies": {
+    "cypress": ">=12.0.0",
+    "@playwright/test": ">=1.40.0",
+    "jest": ">=29.0.0"
+  },
+  "peerDependenciesMeta": {
+    "cypress": {
+      "optional": true
+    },
+    "@playwright/test": {
+      "optional": true
+    },
+    "jest": {
+      "optional": true
+    }
+  }
+}
