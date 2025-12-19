@@ -14,7 +14,7 @@ import time
 import traceback
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable, Generator, List, Optional, TYPE_CHECKING
 from uuid import uuid4
 
@@ -65,14 +65,14 @@ class Step:
     
     def __enter__(self) -> "Step":
         """Enter the step context."""
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now(timezone.utc)
         self.status = Status.RUNNING
         _get_current_steps().append(self)
         return self
     
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> bool:
         """Exit the step context."""
-        self.end_time = datetime.utcnow()
+        self.end_time = datetime.now(timezone.utc)
         self.duration_ms = (self.end_time - self.start_time).total_seconds() * 1000
         
         steps = _get_current_steps()
@@ -114,7 +114,7 @@ class Step:
             "name": name,
             "type": attachment_type,
             "data": data,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })
         return self
     

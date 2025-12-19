@@ -10,7 +10,7 @@ Usage:
 import base64
 import json
 import mimetypes
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional, Union
 from uuid import uuid4
@@ -90,7 +90,7 @@ def attach(
         "extension": extension,
         "content": base64.b64encode(content).decode() if isinstance(content, bytes) else content,
         "size": len(content),
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     
     # Add to current step if in step context

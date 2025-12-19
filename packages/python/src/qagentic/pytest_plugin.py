@@ -19,7 +19,7 @@ Usage:
 import os
 import sys
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Generator
 from uuid import uuid4
@@ -153,7 +153,7 @@ class QAgenticPytestPlugin:
         ci_info = self._get_ci_info()
         
         self.reporter.start_run(
-            name=f"pytest_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+            name=f"pytest_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
             project_name=self.config.project_name,
             environment=self.config.environment,
             ci_build_id=ci_info.get("build_id"),
@@ -173,7 +173,7 @@ class QAgenticPytestPlugin:
         
         # Create test result
         test_result = self._create_test_result(item)
-        test_result.start_time = datetime.utcnow()
+        test_result.start_time = datetime.now(timezone.utc)
         test_result.status = Status.RUNNING
         
         self._test_results[item.nodeid] = test_result
@@ -220,7 +220,7 @@ class QAgenticPytestPlugin:
             return
         
         test_result = self._test_results[item.nodeid]
-        test_result.end_time = datetime.utcnow()
+        test_result.end_time = datetime.now(timezone.utc)
         
         if test_result.start_time:
             test_result.duration_ms = (

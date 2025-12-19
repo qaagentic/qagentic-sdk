@@ -5,7 +5,7 @@ Reporter classes for outputting test results to various destinations.
 import json
 import os
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 import threading
@@ -395,10 +395,10 @@ class QAgenticReporter:
     ) -> TestRunResult:
         """Start a new test run."""
         self._current_run = TestRunResult(
-            name=name or f"run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}",
+            name=name or f"run_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
             project_name=project_name or self.config.project_name,
             environment=environment or self.config.environment,
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(timezone.utc),
             labels=self.config.labels.custom.copy(),
             **kwargs,
         )
@@ -413,7 +413,7 @@ class QAgenticReporter:
         if not self._current_run:
             return None
         
-        self._current_run.end_time = datetime.utcnow()
+        self._current_run.end_time = datetime.now(timezone.utc)
         self._current_run.duration_ms = (
             self._current_run.end_time - self._current_run.start_time
         ).total_seconds() * 1000
