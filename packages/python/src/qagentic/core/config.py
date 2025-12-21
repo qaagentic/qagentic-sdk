@@ -17,6 +17,17 @@ class APIConfig:
     timeout: int = 30
     retry_count: int = 3
     batch_size: int = 100
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "enabled": self.enabled,
+            "url": self.url,
+            "key": self.key,
+            "timeout": self.timeout,
+            "retry_count": self.retry_count,
+            "batch_size": self.batch_size,
+        }
 
 
 @dataclass
@@ -27,6 +38,15 @@ class LocalConfig:
     output_dir: str = "./qagentic-results"
     formats: List[str] = field(default_factory=lambda: ["json", "html"])
     clean_on_start: bool = True
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "enabled": self.enabled,
+            "output_dir": self.output_dir,
+            "formats": self.formats,
+            "clean_on_start": self.clean_on_start,
+        }
 
 
 @dataclass
@@ -40,6 +60,18 @@ class FeaturesConfig:
     videos: str = "on_failure"
     console_output: bool = True
     rich_console: bool = True
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "ai_analysis": self.ai_analysis,
+            "failure_clustering": self.failure_clustering,
+            "flaky_detection": self.flaky_detection,
+            "screenshots": self.screenshots,
+            "videos": self.videos,
+            "console_output": self.console_output,
+            "rich_console": self.rich_console,
+        }
 
 
 @dataclass
@@ -50,6 +82,15 @@ class LabelsConfig:
     component: Optional[str] = None
     environment: Optional[str] = None
     custom: Dict[str, str] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "team": self.team,
+            "component": self.component,
+            "environment": self.environment,
+            "custom": self.custom,
+        }
 
 
 @dataclass
@@ -62,6 +103,26 @@ class QAgenticConfig:
     local: LocalConfig = field(default_factory=LocalConfig)
     features: FeaturesConfig = field(default_factory=FeaturesConfig)
     labels: LabelsConfig = field(default_factory=LabelsConfig)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "project_name": self.project_name,
+            "environment": self.environment,
+            "api": self.api.to_dict(),
+            "local": self.local.to_dict(),
+            "features": self.features.to_dict(),
+            "labels": self.labels.to_dict(),
+        }
+    
+    def __str__(self) -> str:
+        """String representation for serialization."""
+        import json
+        return json.dumps(self.to_dict())
+    
+    def encode(self, encoding: str = "utf-8") -> bytes:
+        """Encode configuration to bytes for serialization."""
+        return str(self).encode(encoding)
     
     @classmethod
     def from_env(cls) -> "QAgenticConfig":

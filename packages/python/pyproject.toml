@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qagentic-pytest"
-version = "0.1.0"
+version = "0.1.2"
 description = "AI-Powered Test Intelligence SDK for Python - pytest plugin with automatic failure analysis"
 readme = "README.md"
 license = "MIT"

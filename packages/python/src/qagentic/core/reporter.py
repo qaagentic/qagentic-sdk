@@ -273,21 +273,25 @@ class APIReporter(BaseReporter):
         
         try:
             client = self._get_client()
-            response = client.post("/api/v1/runs", json={
-                "id": run.id,
-                "name": run.name,
-                "project_name": run.project_name,
+            # Use correct API Gateway endpoint with camelCase fields
+            response = client.post("/api/test-runs", json={
+                "projectName": run.project_name,
                 "environment": run.environment,
-                "start_time": run.start_time.isoformat() if run.start_time else None,
-                "labels": run.labels,
-                "ci_build_id": run.ci_build_id,
-                "branch": run.branch,
-                "commit_hash": run.commit_hash,
+                "startTime": run.start_time.isoformat() if run.start_time else None,
+                "metadata": {
+                    "pythonVersion": None,
+                    "platform": None,
+                    "testFramework": "pytest"
+                }
             })
             response.raise_for_status()
+            data = response.json()
+            # Store the API-generated run ID
+            self._api_run_id = data.get('runId', run.id)
         except Exception as e:
             # Log but don't fail tests
             print(f"Warning: Failed to register run with API: {e}")
+            self._api_run_id = run.id
     
     def end_run(self, run: TestRunResult) -> None:
         """Finalize run with API."""
@@ -299,15 +303,18 @@ class APIReporter(BaseReporter):
         
         try:
             client = self._get_client()
-            response = client.patch(f"/api/v1/runs/{run.id}", json={
-                "end_time": run.end_time.isoformat() if run.end_time else None,
-                "duration_ms": run.duration_ms,
-                "total": run.total,
-                "passed": run.passed,
-                "failed": run.failed,
-                "broken": run.broken,
-                "skipped": run.skipped,
-                "status": "completed",
+            # Use correct API Gateway endpoint with camelCase fields
+            api_run_id = getattr(self, '_api_run_id', run.id)
+            response = client.patch(f"/api/test-runs/{api_run_id}", json={
+                "endTime": run.end_time.isoformat() if run.end_time else None,
+                "summary": {
+                    "total": run.total,
+                    "passed": run.passed,
+                    "failed": run.failed,
+                    "broken": run.broken,
+                    "skipped": run.skipped,
+                    "duration_ms": run.duration_ms,
+                }
             })
             response.raise_for_status()
         except Exception as e:
@@ -334,11 +341,22 @@ class APIReporter(BaseReporter):
         
         try:
             client = self._get_client()
-            response = client.post(
-                f"/api/v1/runs/{self._run.id}/results",
-                json=[t.to_dict() for t in self._batch],
-            )
-            response.raise_for_status()
+            api_run_id = getattr(self, '_api_run_id', self._run.id)
+            # Send each test result individually
+            for test in self._batch:
+                response = client.post(
+                    f"/api/test-runs/results",
+                    json={
+                        "runId": api_run_id,
+                        "name": test.name,
+                        "status": str(test.status),
+                        "duration": test.duration_ms,
+                        "metadata": test.labels or {},
+                        "error": test.error_message,
+                        "stackTrace": test.stack_trace,
+                    }
+                )
+                response.raise_for_status()
         except Exception as e:
             print(f"Warning: Failed to send test results to API: {e}")
         finally:
