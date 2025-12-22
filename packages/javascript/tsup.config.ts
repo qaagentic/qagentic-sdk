@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     index: 'src/index.ts',
     'cypress/index': 'src/cypress/index.ts',
+    'cypress/simple-setup': 'src/cypress/simple-setup.ts',
     'playwright/index': 'src/playwright/index.ts',
     'jest/index': 'src/jest/index.ts',
   },

@@ -197,5 +197,8 @@ export function registerCommands(): void {
   // registerCommands();
 }
 
+// Export simplified setup
+export { setupQAgentic } from './simple-setup';
+
 // Default export
 export default qagentic;

@@ -823,6 +823,75 @@ function attachJson(data, name = "JSON Data") {
 function attachText(text, name = "Text") {
   return attach(text, name, "text/plain", "txt");
 }
+function setupQAgentic(on, config) {
+  const projectName = process.env.QAGENTIC_PROJECT_NAME || config.projectId || "Cypress E2E Tests";
+  const environment = process.env.QAGENTIC_ENVIRONMENT || process.env.NODE_ENV || "e2e";
+  const apiUrl = process.env.QAGENTIC_API_URL || "http://localhost:8080";
+  configure({
+    projectName,
+    environment,
+    apiUrl,
+    outputDir: "./qagentic-results"
+  });
+  const reporter = QAgenticReporter.getInstance();
+  let currentRun = null;
+  on("before:run", async () => {
+    try {
+      currentRun = await reporter.startRun({
+        name: `cypress_${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "")}`,
+        projectName,
+        environment
+      });
+      console.log("[QAagentic] Test run started successfully");
+    } catch (error) {
+      console.warn("[QAagentic] Failed to start run:", error);
+    }
+  });
+  on("after:spec", async (_spec, results) => {
+    if (!results?.tests) return;
+    for (const test of results.tests) {
+      try {
+        const testResult = {
+          id: v4(),
+          name: test.title[test.title.length - 1],
+          fullName: test.title.join(" > "),
+          status: parseStatus(test.state),
+          durationMs: test.duration,
+          startTime: new Date(Date.now() - test.duration),
+          endTime: /* @__PURE__ */ new Date(),
+          labels: {
+            suite: test.title.slice(0, -1).join(" > "),
+            feature: test.title[0]
+          },
+          links: [],
+          parameters: {},
+          steps: [],
+          attachments: [],
+          filePath: results.spec.relative,
+          retryCount: 0,
+          isRetry: false,
+          isFlaky: false
+        };
+        if (test.err) {
+          testResult.errorMessage = test.err.message;
+          testResult.stackTrace = test.err.stack;
+          testResult.errorType = "AssertionError";
+        }
+        await reporter.reportTest(testResult);
+      } catch (error) {
+        console.warn("[QAagentic] Failed to report test:", error);
+      }
+    }
+  });
+  on("after:run", async () => {
+    try {
+      await reporter.endRun();
+      console.log("[QAagentic] Test run completed");
+    } catch (error) {
+      console.warn("[QAagentic] Failed to end run:", error);
+    }
+  });
+}
 
 // src/cypress/index.ts
 function qagentic(on, config, options = {}) {
@@ -883,6 +952,6 @@ function registerCommands() {
 }
 var cypress_default = qagentic;
 
-export { Severity, Status, Step, attach, attachJson, attachScreenshot, attachText, cypress_default as default, epic, feature, label, qagentic, registerCommands, severity, step, story, tag };
+export { Severity, Status, Step, attach, attachJson, attachScreenshot, attachText, cypress_default as default, epic, feature, label, qagentic, registerCommands, setupQAgentic, severity, step, story, tag };
 //# sourceMappingURL=index.mjs.map
 //# sourceMappingURL=index.mjs.map
