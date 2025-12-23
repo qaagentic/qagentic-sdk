@@ -523,9 +523,18 @@ var APIReporter = class {
       const response = await axios__default.default.post(
         `${this.config.api.url}/api/v1/runs/${this.currentRun.id}/results`,
         this.batch.map((t) => ({
-          ...t,
-          startTime: t.startTime?.toISOString(),
-          endTime: t.endTime?.toISOString()
+          id: t.id,
+          name: t.name,
+          full_name: t.fullName,
+          status: t.status,
+          duration_ms: t.durationMs,
+          start_time: t.startTime?.toISOString(),
+          end_time: t.endTime?.toISOString(),
+          file_path: t.filePath,
+          error_message: t.errorMessage,
+          stack_trace: t.stackTrace,
+          error_type: t.errorType,
+          attachments: t.attachments
         })),
         {
           headers: {
@@ -930,6 +939,7 @@ var QAgenticCypressReporter = class {
       end: /* @__PURE__ */ new Date(),
       duration: 0
     };
+    this.pendingTests = [];
     this.projectName = process.env.QAGENTIC_PROJECT_NAME || config.projectId || "Cypress E2E Tests";
     this.environment = process.env.QAGENTIC_ENVIRONMENT || process.env.NODE_ENV || "e2e";
     const apiUrl = process.env.QAGENTIC_API_URL || "http://localhost:8080";
@@ -997,10 +1007,13 @@ var QAgenticCypressReporter = class {
         const displayError = test.displayError;
         if (errorInfo) {
           testResult.errorMessage = errorInfo.message || "Test failed";
-          testResult.stackTrace = errorInfo.stack || errorInfo.toString();
+          testResult.stackTrace = errorInfo.stack || errorInfo.codeFrame || errorInfo.toString() || displayError || "";
           testResult.errorType = errorInfo.name || "AssertionError";
         } else if (displayError) {
           testResult.errorMessage = displayError;
+          if (displayError.includes("\n")) {
+            testResult.stackTrace = displayError;
+          }
           testResult.errorType = "AssertionError";
         } else {
           testResult.errorMessage = "Test assertion failed";
@@ -1011,43 +1024,82 @@ var QAgenticCypressReporter = class {
           type: testResult.errorType,
           hasStackTrace: !!testResult.stackTrace
         });
-        if (test.invocationDetails?.relativeFile) {
-          const testFileName = test.invocationDetails.relativeFile.replace(/\.ts$/, "");
-          const screenshotPath = path2__namespace.join(
-            process.cwd(),
-            "cypress/screenshots",
-            `${testFileName} -- ${test.title[test.title.length - 1]} (failed).png`
-          );
-          console.log("[QAagentic] Looking for screenshot at:", screenshotPath);
-          if (fs2__namespace.existsSync(screenshotPath)) {
-            try {
-              const screenshotContent = fs2__namespace.readFileSync(screenshotPath);
-              testResult.attachments.push({
-                id: uuid.v4(),
-                name: "screenshot",
-                type: "image/png",
-                extension: "png",
-                content: screenshotContent.toString("base64"),
-                size: screenshotContent.length,
-                timestamp: (/* @__PURE__ */ new Date()).toISOString()
-              });
-              console.log("[QAagentic] Added screenshot attachment:", screenshotPath);
-            } catch (err) {
-              console.warn("[QAagentic] Failed to read screenshot:", err);
-            }
-          } else {
-            console.log("[QAagentic] Screenshot not found at:", screenshotPath);
-          }
-        }
       }
       this.stats.tests++;
       if (test.state === "passed") this.stats.passes++;
       if (test.state === "failed") this.stats.failures++;
       if (test.state === "pending") this.stats.pending++;
-      await this.reporter.reportTest(testResult);
+      this.pendingTests.push({
+        testResult,
+        test
+      });
     } catch (error) {
       console.warn("[QAagentic] Failed to report test:", error);
     }
+  }
+  async attachScreenshots() {
+    console.log("[QAagentic] Attaching screenshots to pending tests, count:", this.pendingTests.length);
+    for (const { testResult, test } of this.pendingTests) {
+      if (test.state !== "failed") {
+        console.log("[QAagentic] Skipping non-failed test:", test.title[test.title.length - 1]);
+        continue;
+      }
+      let testFileName = "login.cy.ts";
+      if (test.invocationDetails?.relativeFile) {
+        testFileName = test.invocationDetails.relativeFile.replace(/\.ts$/, "");
+      }
+      const testName = test.title[test.title.length - 1];
+      console.log("[QAagentic] Processing failed test:", testName, "from file:", testFileName);
+      const screenshotDir = path2__namespace.join(
+        process.cwd(),
+        "cypress/reports/assets",
+        testFileName
+      );
+      console.log("[QAagentic] Looking for screenshots in:", screenshotDir);
+      if (!fs2__namespace.existsSync(screenshotDir)) {
+        console.log("[QAagentic] Screenshot directory not found:", screenshotDir);
+        continue;
+      }
+      try {
+        const files = fs2__namespace.readdirSync(screenshotDir);
+        console.log("[QAagentic] Files in directory:", files);
+        console.log("[QAagentic] Looking for test name:", testName);
+        const matchingScreenshots = files.filter(
+          (file) => file.includes(testName) && file.includes("(failed)") && file.endsWith(".png")
+        );
+        console.log("[QAagentic] Matching screenshots found:", matchingScreenshots.length, matchingScreenshots);
+        if (matchingScreenshots.length > 0) {
+          const screenshotFile = matchingScreenshots.find((f) => !f.includes("(attempt")) || matchingScreenshots[0];
+          const screenshotPath = path2__namespace.join(screenshotDir, screenshotFile);
+          try {
+            const screenshotContent = fs2__namespace.readFileSync(screenshotPath);
+            testResult.attachments.push({
+              id: uuid.v4(),
+              name: "screenshot",
+              type: "image/png",
+              extension: "png",
+              content: screenshotContent.toString("base64"),
+              size: screenshotContent.length,
+              timestamp: (/* @__PURE__ */ new Date()).toISOString()
+            });
+            console.log("[QAagentic] Added screenshot for:", testName);
+          } catch (err) {
+            console.warn("[QAagentic] Failed to read screenshot:", err);
+          }
+        } else {
+          console.log("[QAagentic] No matching screenshots found for test:", testName, "in", screenshotDir);
+        }
+      } catch (err) {
+        console.warn("[QAagentic] Failed to read screenshot directory:", err);
+      }
+    }
+  }
+  async sendPendingTests() {
+    console.log("[QAagentic] Sending", this.pendingTests.length, "pending tests to API");
+    for (const { testResult } of this.pendingTests) {
+      await this.reporter.reportTest(testResult);
+    }
+    this.pendingTests = [];
   }
   async finalizeRun() {
     if (this.runFinalized || !this.currentRun) return;
@@ -1081,9 +1133,18 @@ function setupQAgentic(on, config) {
     return (async () => {
       if (!results?.tests) return;
       try {
+        await reporter.ensureRunStarted();
+        console.log("[QAagentic] Waiting for screenshots to be written...");
+        await new Promise((resolve) => setTimeout(resolve, 2e3));
+        console.log("[QAagentic] Processing", results.tests.length, "tests");
         for (const test of results.tests) {
           await reporter.onTestEnd(test);
         }
+        console.log("[QAagentic] Attaching screenshots...");
+        await reporter.attachScreenshots();
+        console.log("[QAagentic] Sending tests with screenshots to API...");
+        await reporter.sendPendingTests();
+        console.log("[QAagentic] Finalizing run...");
         await reporter.finalizeRun();
         await new Promise((resolve) => setTimeout(resolve, 2e3));
       } catch (error) {

@@ -1,6 +1,6 @@
 {
   "name": "qagentic-reporter",
-  "version": "0.1.31",
+  "version": "0.1.42",
   "description": "AI-Powered Test Intelligence SDK for JavaScript/TypeScript - Cypress, Playwright, Jest support with simplified one-line setup",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

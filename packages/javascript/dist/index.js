@@ -813,9 +813,18 @@ var APIReporter = class {
       const response = await axios__default.default.post(
         `${this.config.api.url}/api/v1/runs/${this.currentRun.id}/results`,
         this.batch.map((t) => ({
-          ...t,
-          startTime: t.startTime?.toISOString(),
-          endTime: t.endTime?.toISOString()
+          id: t.id,
+          name: t.name,
+          full_name: t.fullName,
+          status: t.status,
+          duration_ms: t.durationMs,
+          start_time: t.startTime?.toISOString(),
+          end_time: t.endTime?.toISOString(),
+          file_path: t.filePath,
+          error_message: t.errorMessage,
+          stack_trace: t.stackTrace,
+          error_type: t.errorType,
+          attachments: t.attachments
         })),
         {
           headers: {
