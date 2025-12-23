@@ -249,14 +249,21 @@ export class APIReporter implements BaseReporter {
   }
 
   async startRun(run: TestRunResult): Promise<void> {
-    if (!this.config.api.enabled) return;
+    if (!this.config.api.enabled) {
+      console.log('[APIReporter] API reporting disabled');
+      return;
+    }
 
     this.currentRun = run;
     this.batch = [];
 
     try {
-      await axios.post(
-        `${this.config.api.url}/api/v1/runs`,
+      console.log('[APIReporter] Starting test run:', run.id);
+      const url = `${this.config.api.url}/api/v1/runs`;
+      console.log('[APIReporter] POST to:', url);
+      
+      const response = await axios.post(
+        url,
         {
           id: run.id,
           name: run.name,
@@ -277,50 +284,87 @@ export class APIReporter implements BaseReporter {
           timeout: this.config.api.timeout,
         }
       );
-    } catch (error) {
-      console.warn('Warning: Failed to register run with API:', error);
+      console.log('[APIReporter] Test run started successfully:', response.status);
+    } catch (error: any) {
+      console.warn('[APIReporter] Failed to register run with API:');
+      console.warn('  Error:', error.message);
+      console.warn('  Status:', error.response?.status);
+      console.warn('  Data:', error.response?.data);
     }
   }
 
   async endRun(run: TestRunResult): Promise<void> {
     if (!this.config.api.enabled) return;
 
-    // Flush remaining batch
-    await this.flushBatch();
-
     try {
-      await axios.patch(
+      console.log('[APIReporter] endRun called, batch size:', this.batch.length);
+      
+      // Flush remaining batch - ALWAYS flush, even if batch is not full
+      if (this.batch.length > 0) {
+        console.log('[APIReporter] Flushing remaining', this.batch.length, 'test results');
+        await this.flushBatch();
+        console.log('[APIReporter] Batch flushed, waiting for processing...');
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+
+      console.log('[APIReporter] Finalizing run with test counts:', {
+        total: run.total,
+        passed: run.passed,
+        failed: run.failed,
+        broken: run.broken,
+        skipped: run.skipped,
+      });
+      
+      const patchData = {
+        end_time: run.endTime?.toISOString(),
+        duration_ms: run.durationMs,
+        total: run.total,
+        passed: run.passed,
+        failed: run.failed,
+        broken: run.broken,
+        skipped: run.skipped,
+        status: 'completed',
+      };
+      
+      console.log('[APIReporter] PATCH to:', `${this.config.api.url}/api/v1/runs/${run.id}`);
+      console.log('[APIReporter] PATCH data:', patchData);
+      
+      const response = await axios.patch(
         `${this.config.api.url}/api/v1/runs/${run.id}`,
-        {
-          end_time: run.endTime?.toISOString(),
-          duration_ms: run.durationMs,
-          total: run.total,
-          passed: run.passed,
-          failed: run.failed,
-          broken: run.broken,
-          skipped: run.skipped,
-          status: 'completed',
-        },
+        patchData,
         {
           headers: {
             'Content-Type': 'application/json',
             'X-API-Key': this.config.api.key || '',
+            'X-Project': this.config.projectName,
           },
           timeout: this.config.api.timeout,
         }
       );
-    } catch (error) {
-      console.warn('Warning: Failed to finalize run with API:', error);
+      console.log('[APIReporter] Run finalized successfully:', response.status);
+    } catch (error: any) {
+      console.warn('[APIReporter] Failed to finalize run with API:');
+      console.warn('  Error:', error.message);
+      console.warn('  Status:', error.response?.status);
+      console.warn('  Data:', error.response?.data);
     }
   }
 
   async reportTest(test: TestResult): Promise<void> {
-    if (!this.config.api.enabled) return;
+    console.log('[APIReporter] reportTest called for:', test.name, 'API enabled:', this.config.api.enabled);
+    if (!this.config.api.enabled) {
+      console.log('[APIReporter] API reporting disabled, skipping test report');
+      return;
+    }
 
+    console.log('[APIReporter] Adding test to batch:', test.name, '- batch size:', this.batch.length + 1);
     this.batch.push(test);
 
     if (this.batch.length >= this.config.api.batchSize) {
+      console.log('[APIReporter] Batch size reached, flushing batch');
       await this.flushBatch();
+    } else {
+      console.log('[APIReporter] Batch size:', this.batch.length, '/', this.config.api.batchSize);
     }
   }
 
@@ -328,7 +372,8 @@ export class APIReporter implements BaseReporter {
     if (this.batch.length === 0 || !this.currentRun) return;
 
     try {
-      await axios.post(
+      console.log('[APIReporter] Flushing batch of', this.batch.length, 'test results');
+      const response = await axios.post(
         `${this.config.api.url}/api/v1/runs/${this.currentRun.id}/results`,
         this.batch.map((t) => ({
           ...t,
@@ -343,8 +388,12 @@ export class APIReporter implements BaseReporter {
           timeout: this.config.api.timeout,
         }
       );
-    } catch (error) {
-      console.warn('Warning: Failed to send test results to API:', error);
+      console.log('[APIReporter] Batch flushed successfully:', response.status);
+    } catch (error: any) {
+      console.warn('[APIReporter] Failed to send test results to API:');
+      console.warn('  Error:', error.message);
+      console.warn('  Status:', error.response?.status);
+      console.warn('  Data:', error.response?.data);
     } finally {
       this.batch = [];
     }
@@ -363,21 +412,34 @@ export class QAgenticReporter {
   constructor(config?: QAgenticConfig) {
     this.config = config || getConfig();
 
+    console.log('[QAgenticReporter] Initializing with config:', {
+      projectName: this.config.projectName,
+      environment: this.config.environment,
+      apiEnabled: this.config.api.enabled,
+      apiUrl: this.config.api.url,
+    });
+
     // Initialize reporters based on config
     if (this.config.features.consoleOutput) {
       this.reporters.push(new ConsoleReporter(this.config));
+      console.log('[QAgenticReporter] Added ConsoleReporter');
     }
 
     if (this.config.local.enabled) {
       this.reporters.push(new JSONReporter(this.config));
+      console.log('[QAgenticReporter] Added JSONReporter');
       if (this.config.local.formats.includes('junit')) {
         this.reporters.push(new JUnitReporter(this.config));
+        console.log('[QAgenticReporter] Added JUnitReporter');
       }
     }
 
     if (this.config.api.enabled) {
       this.reporters.push(new APIReporter(this.config));
+      console.log('[QAgenticReporter] Added APIReporter');
     }
+
+    console.log('[QAgenticReporter] Initialization complete with', this.reporters.length, 'reporters');
   }
 
   /**
@@ -455,25 +517,36 @@ export class QAgenticReporter {
    * Report a test result.
    */
   async reportTest(test: TestResult): Promise<void> {
-    if (this.currentRun) {
-      this.currentRun.tests.push(test);
-      this.currentRun.total++;
-
-      switch (test.status) {
-        case Status.PASSED:
-          this.currentRun.passed++;
-          break;
-        case Status.FAILED:
-          this.currentRun.failed++;
-          break;
-        case Status.BROKEN:
-          this.currentRun.broken++;
-          break;
-        case Status.SKIPPED:
-          this.currentRun.skipped++;
-          break;
-      }
+    if (!this.currentRun) {
+      console.warn('[QAgenticReporter] No active run to report test');
+      return;
     }
+
+    this.currentRun.tests.push(test);
+    this.currentRun.total++;
+
+    switch (test.status) {
+      case 'passed':
+        this.currentRun.passed++;
+        break;
+      case 'failed':
+        this.currentRun.failed++;
+        break;
+      case 'broken':
+        this.currentRun.broken++;
+        break;
+      case 'skipped':
+        this.currentRun.skipped++;
+        break;
+    }
+
+    console.log('[QAgenticReporter] Test counts:', {
+      total: this.currentRun.total,
+      passed: this.currentRun.passed,
+      failed: this.currentRun.failed,
+      broken: this.currentRun.broken,
+      skipped: this.currentRun.skipped,
+    });
 
     for (const reporter of this.reporters) {
       await reporter.reportTest(test);

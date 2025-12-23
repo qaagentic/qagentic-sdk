@@ -1,5 +1,5 @@
 export { S as Severity, b as Status, c as Step, u as attach, x as attachJson, w as attachScreenshot, y as attachText, e as epic, f as feature, l as label, g as severity, s as step, d as story, t as tag } from '../attachments-B2zaEsD5.mjs';
-export { default as setupQAgentic } from './simple-setup.mjs';
+export { setupQAgentic } from './simple-setup.mjs';
 
 /**
  * QAagentic Cypress Plugin
