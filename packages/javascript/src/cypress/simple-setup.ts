@@ -62,8 +62,8 @@ class QAgenticCypressReporter {
                       'e2e';
     
     const apiUrl = process.env.QAGENTIC_API_URL || 
-                  'http://localhost:8080';
-
+                  'https://qagentic-api-gateway.onrender.com';
+    
     // Configure QAagentic
     configure({
       projectName: this.projectName,
